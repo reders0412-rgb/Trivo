@@ -113,10 +113,10 @@ void MainWindow::setupUI()
 void MainWindow::setupMenuBar()
 {
     auto *fileMenu = menuBar()->addMenu(tr("파일 / File"));
-    fileMenu->addAction(QIcon(":/icons/open.svg"),   tr("열기…"), this, &MainWindow::onOpenFile, QKeySequence::Open);
-    fileMenu->addAction(QIcon(":/icons/add.svg"),    tr("씬에 추가…"), this, &MainWindow::onAddFile, QKeySequence("Ctrl+Shift+O"));
+    fileMenu->addAction(QIcon(":/icons/open.ico"),   tr("열기…"), this, &MainWindow::onOpenFile, QKeySequence::Open);
+    fileMenu->addAction(QIcon(":/icons/add.ico"),    tr("씬에 추가…"), this, &MainWindow::onAddFile, QKeySequence("Ctrl+Shift+O"));
     fileMenu->addSeparator();
-    fileMenu->addAction(QIcon(":/icons/camera.svg"), tr("스크린샷 저장"), this, &MainWindow::onScreenshot, QKeySequence("Ctrl+P"));
+    fileMenu->addAction(QIcon(":/icons/camera.ico"), tr("스크린샷 저장"), this, &MainWindow::onScreenshot, QKeySequence("Ctrl+P"));
     fileMenu->addSeparator();
     fileMenu->addAction(tr("종료"), this, &QMainWindow::close, QKeySequence::Quit);
 
