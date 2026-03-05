@@ -59,9 +59,9 @@ jobs:
           C:\vcpkg_standalone\bootstrap-vcpkg.bat -disableMetrics
 
           # 클래식 모드: 패키지명 직접 지정 가능
-          C:\vcpkg_standalone\vcpkg.exe install assimp:x64-windows `
-            --vcpkg-root=C:\vcpkg_standalone `
-            --no-print-usage
+          C:\vcpkg_standalone\vcpkg.exe install assimp:x64-windows --classic `
+          --vcpkg-root=C:\vcpkg_standalone `
+          --no-print-usage
 
       - name: "🔗 Set vcpkg env"
         shell: pwsh
