@@ -5,7 +5,7 @@
 ```
 trivo/
 ├── src/
-│   ├── main.cpp                  # 진입점 (OpenGL format 설정, i18n 초기화)
+│   ├── main.cpp                  # 진입점 (OpenGL format 설정, i18n 초기화) 
 │   ├── core/
 │   │   ├── MainWindow.{h,cpp}    # 메인 윈도우, 테마/언어, D&D
 │   │   ├── Viewport.{h,cpp}      # QOpenGLWidget, 마우스 조작, 60fps 루프
