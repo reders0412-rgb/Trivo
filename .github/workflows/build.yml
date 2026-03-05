@@ -1,155 +1,231 @@
-name: Build & Release Trivo
+name: "🧊 Trivo — Build & Release"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 트리거: main/develop push, 태그 v*, PR
+# ─────────────────────────────────────────────────────────────────────────────
 on:
   push:
     branches: [main, develop]
-    tags: ['v*.*.*']
+    tags:     ["v*.*.*"]
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: write   # Release 생성에 필요
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 공통 환경 변수
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  QT_VERSION: "6.7.3"
+  BUILD_TYPE: "Release"
+
+# =============================================================================
 jobs:
 
-  # ── Windows ─────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# 🪟  WINDOWS  (MSVC 2022, x64)
+# ─────────────────────────────────────────────────────────────────────────────
   build-windows:
-    name: "🪟 Windows x64 (MSVC)"
+    name: "🪟 Windows x64"
     runs-on: windows-2022
 
     steps:
-      - name: Checkout
+      # 1. 소스 체크아웃
+      - name: "📥 Checkout"
         uses: actions/checkout@v4
 
-      - name: Cache vcpkg
+      # 2. Qt6 설치 (공식 바이너리 — vcpkg로 Qt 설치 시 syncqt 오류 발생)
+      - name: "⚙️ Install Qt ${{ env.QT_VERSION }}"
+        uses: jurplel/install-qt-action@v4
+        with:
+          version:  ${{ env.QT_VERSION }}
+          host:     windows
+          target:   desktop
+          arch:     win64_msvc2019_64
+          cache:    true
+
+      # 3. vcpkg 캐시 (Assimp만 vcpkg로 관리)
+      - name: "💾 Cache vcpkg packages"
         uses: actions/cache@v4
         with:
-          path: C:/vcpkg/installed
-          key: vcpkg-windows-assimp-${{ hashFiles('vcpkg.json') }}
+          path: |
+            ${{ github.workspace }}/vcpkg
+            ${{ github.workspace }}/vcpkg_installed
+            ~\AppData\Local\vcpkg\archives
+          key: vcpkg-windows-x64-assimp-${{ hashFiles('vcpkg.json') }}-v2
+          restore-keys: |
+            vcpkg-windows-x64-assimp-
 
-      - name: Install Assimp via vcpkg
+      # 4. vcpkg 설치 및 Assimp 빌드
+      - name: "📦 Setup vcpkg & install Assimp"
         shell: pwsh
         run: |
-          vcpkg integrate install
-          vcpkg install assimp:x64-windows
-          echo "VCPKG_ROOT=C:/vcpkg" >> $env:GITHUB_ENV
+          if (-not (Test-Path "${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat")) {
+            git clone https://github.com/microsoft/vcpkg.git "${{ github.workspace }}/vcpkg" --depth=1
+          }
+          & "${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          & "${{ github.workspace }}/vcpkg/vcpkg.exe" install assimp:x64-windows `
+            --x-install-root="${{ github.workspace }}/vcpkg_installed" `
+            --no-print-usage
+          echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $env:GITHUB_ENV
+          echo "VCPKG_INSTALLED=${{ github.workspace }}/vcpkg_installed" >> $env:GITHUB_ENV
 
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: '6.7.0'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2019_64'
-          cache: true
-          cache-key-prefix: 'qt6-win64'
-
-      - name: Configure CMake
+      # 5. CMake 구성
+      - name: "🔧 Configure CMake"
         shell: pwsh
         run: |
           cmake -B build -S . `
             -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=x64-windows
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET="x64-windows" `
+            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed"
 
-      - name: Build
-        shell: pwsh
-        run: cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS
-
-      - name: Deploy (windeployqt)
+      # 6. 빌드
+      - name: "🔨 Build"
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist/Trivo | Out-Null
-          Copy-Item build/bin/Release/Trivo.exe dist/Trivo/
-          $qtBin = "$env:Qt6_DIR/../../../bin"
-          & "$qtBin/windeployqt.exe" dist/Trivo/Trivo.exe `
+          cmake --build build --config ${{ env.BUILD_TYPE }} --parallel $env:NUMBER_OF_PROCESSORS
+
+      # 7. windeployqt로 Qt DLL 모두 포함
+      - name: "📁 Deploy (windeployqt)"
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist\Trivo | Out-Null
+
+          # 빌드 결과물 복사
+          Copy-Item "build\${{ env.BUILD_TYPE }}\Trivo.exe" dist\Trivo\
+          if (Test-Path "build\bin\${{ env.BUILD_TYPE }}\Trivo.exe") {
+            Copy-Item "build\bin\${{ env.BUILD_TYPE }}\Trivo.exe" dist\Trivo\ -Force
+          }
+
+          # windeployqt 실행 (Qt6_DIR 환경변수 활용)
+          $qtBin = "${{ env.Qt6_DIR }}\..\..\..\bin"
+          & "$qtBin\windeployqt.exe" "dist\Trivo\Trivo.exe" `
             --no-translations `
             --no-system-d3d-compiler `
             --no-opengl-sw `
             --release
-          # Copy assimp DLL
-          $assimpDll = Get-ChildItem "C:/vcpkg/installed/x64-windows/bin/assimp*.dll" | Select-Object -First 1
-          if ($assimpDll) { Copy-Item $assimpDll.FullName dist/Trivo/ }
-          # Copy zlib DLL (assimp dep)
-          $zlibDll = Get-ChildItem "C:/vcpkg/installed/x64-windows/bin/zlib*.dll" | Select-Object -First 1
-          if ($zlibDll) { Copy-Item $zlibDll.FullName dist/Trivo/ }
 
-      - name: Create ZIP
+          # Assimp DLL 복사
+          $assimpDlls = Get-ChildItem `
+            "${{ github.workspace }}\vcpkg_installed\x64-windows\bin\assimp*.dll"
+          foreach ($dll in $assimpDlls) {
+            Copy-Item $dll.FullName dist\Trivo\
+          }
+          # zlib DLL (Assimp 의존성)
+          $zlibDlls = Get-ChildItem `
+            "${{ github.workspace }}\vcpkg_installed\x64-windows\bin\zlib*.dll"
+          foreach ($dll in $zlibDlls) {
+            Copy-Item $dll.FullName dist\Trivo\
+          }
+
+      # 8. ZIP 패키징
+      - name: "📦 Package ZIP"
         shell: pwsh
-        run: Compress-Archive -Path dist/Trivo -DestinationPath Trivo-Windows-x64.zip
+        run: |
+          Compress-Archive -Path dist\Trivo -DestinationPath Trivo-Windows-x64.zip
+          Write-Host "Created: $(Get-Item Trivo-Windows-x64.zip | Select-Object -ExpandProperty Length) bytes"
 
-      - name: Upload artifact
+      # 9. 아티팩트 업로드
+      - name: "⬆️ Upload artifact"
         uses: actions/upload-artifact@v4
         with:
           name: Trivo-Windows-x64
           path: Trivo-Windows-x64.zip
+          if-no-files-found: error
 
-  # ── macOS ────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🍎  macOS  (Apple Silicon + Intel Universal Binary)
+# ─────────────────────────────────────────────────────────────────────────────
   build-macos:
-    name: "🍎 macOS Universal (arm64 + x86_64)"
-    runs-on: macos-14
+    name: "🍎 macOS Universal"
+    runs-on: macos-14   # Apple Silicon (arm64)
 
     steps:
-      - name: Checkout
+      - name: "📥 Checkout"
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew
+      # Homebrew 캐시
+      - name: "💾 Cache Homebrew"
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/Homebrew
-          key: brew-assimp-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/assimp
+          key: brew-assimp-macos14-${{ hashFiles('vcpkg.json') }}-v1
+          restore-keys: brew-assimp-macos14-
 
-      - name: Install Assimp
-        run: brew install assimp
+      # Assimp는 Homebrew로 설치 (macOS에서는 Homebrew가 훨씬 안정적)
+      - name: "📦 Install Assimp via Homebrew"
+        run: |
+          brew install assimp || brew upgrade assimp
+          echo "ASSIMP_ROOT=$(brew --prefix assimp)" >> $GITHUB_ENV
 
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v3
+      # Qt6 설치
+      - name: "⚙️ Install Qt ${{ env.QT_VERSION }}"
+        uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.0'
-          host: 'mac'
-          target: 'desktop'
-          arch: 'clang_64'
-          cache: true
-          cache-key-prefix: 'qt6-mac'
+          version:  ${{ env.QT_VERSION }}
+          host:     mac
+          target:   desktop
+          arch:     clang_64
+          cache:    true
 
-      - name: Configure CMake
+      # CMake 구성 (Universal Binary)
+      - name: "🔧 Configure CMake"
         run: |
           cmake -B build -S . \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DCMAKE_PREFIX_PATH="${{ env.ASSIMP_ROOT }}"
 
-      - name: Build
-        run: cmake --build build --config Release --parallel $(sysctl -n hw.logicalcpu)
+      - name: "🔨 Build"
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.logicalcpu)
 
-      - name: Bundle (macdeployqt → DMG)
+      # macdeployqt → DMG
+      - name: "📁 Deploy (macdeployqt → DMG)"
         run: |
-          APP_PATH="build/bin/Trivo.app"
-          # macdeployqt is in Qt bin dir
-          QT_BIN="${Qt6_DIR}/../../../bin"
-          "${QT_BIN}/macdeployqt" "${APP_PATH}" \
-            -dmg \
-            -no-strip
-          mv build/bin/Trivo.dmg Trivo-macOS-Universal.dmg
+          # Trivo.app 위치 찾기
+          APP=$(find build -name "Trivo.app" -maxdepth 4 | head -1)
+          echo "Found app: $APP"
 
-      - name: Upload artifact
+          QT_BIN="${Qt6_DIR}/../../../bin"
+          "${QT_BIN}/macdeployqt" "${APP}" \
+            -dmg \
+            -no-strip \
+            -always-overwrite
+
+          # DMG 이동
+          mv "$(dirname ${APP})/Trivo.dmg" Trivo-macOS-Universal.dmg || \
+          find build -name "*.dmg" -exec mv {} Trivo-macOS-Universal.dmg \;
+
+          echo "DMG size: $(du -sh Trivo-macOS-Universal.dmg)"
+
+      - name: "⬆️ Upload artifact"
         uses: actions/upload-artifact@v4
         with:
           name: Trivo-macOS
           path: Trivo-macOS-Universal.dmg
+          if-no-files-found: error
 
-  # ── Linux ────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🐧  LINUX  (Ubuntu 22.04, x86_64, AppImage)
+# ─────────────────────────────────────────────────────────────────────────────
   build-linux:
     name: "🐧 Linux x86_64 (AppImage)"
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: "📥 Checkout"
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      # 시스템 패키지 (OpenGL, XCB, Assimp)
+      - name: "📦 Install system dependencies"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
@@ -164,49 +240,79 @@ jobs:
             libxcb-xinput-dev libxcb-xfixes0-dev \
             libfontconfig1-dev libfreetype6-dev \
             libdbus-1-dev libharfbuzz-dev \
-            fuse libfuse2 wget patchelf
+            libssl-dev \
+            fuse libfuse2 patchelf wget file
 
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v3
+      # Qt6 설치
+      - name: "⚙️ Install Qt ${{ env.QT_VERSION }}"
+        uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.0'
-          host: 'linux'
-          target: 'desktop'
-          arch: 'gcc_64'
-          cache: true
-          cache-key-prefix: 'qt6-linux'
+          version:  ${{ env.QT_VERSION }}
+          host:     linux
+          target:   desktop
+          arch:     gcc_64
+          cache:    true
 
-      - name: Configure CMake
+      # CMake 구성
+      - name: "🔧 Configure CMake"
         run: |
           cmake -B build -S . \
             -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_INSTALL_PREFIX=/usr
 
-      - name: Build
+      - name: "🔨 Build"
         run: cmake --build build --parallel $(nproc)
 
-      - name: Install into AppDir
+      # AppDir 구성
+      - name: "📁 Install into AppDir"
         run: |
-          DESTDIR="$(pwd)/AppDir" cmake --install build
+          DESTDIR="${{ github.workspace }}/AppDir" cmake --install build
 
-      - name: Download AppImage tools
+          # 아이콘 / 데스크탑 파일 배치
+          mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/usr/share/applications
+
+          cp resources/icons/trivo_app.svg \
+            AppDir/usr/share/icons/hicolor/scalable/apps/trivo.svg
+
+          # PNG 변환이 없으면 SVG를 256 위치에도 복사 (linuxdeploy가 처리)
+          cp resources/icons/trivo_app.svg \
+            AppDir/usr/share/icons/hicolor/256x256/apps/trivo.svg || true
+
+          cp resources/trivo.desktop \
+            AppDir/usr/share/applications/trivo.desktop
+
+          # desktop 파일 검증
+          cat AppDir/usr/share/applications/trivo.desktop
+
+      # linuxdeploy 다운로드 (캐시)
+      - name: "💾 Cache linuxdeploy tools"
+        uses: actions/cache@v4
+        with:
+          path: |
+            linuxdeploy-x86_64.AppImage
+            linuxdeploy-plugin-qt-x86_64.AppImage
+          key: linuxdeploy-tools-v2
+
+      - name: "⬇️ Download linuxdeploy"
         run: |
-          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-          wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          if [ ! -f "linuxdeploy-x86_64.AppImage" ]; then
+            wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          fi
+          if [ ! -f "linuxdeploy-plugin-qt-x86_64.AppImage" ]; then
+            wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          fi
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
 
-      - name: Build AppImage
+      # AppImage 빌드
+      - name: "📦 Build AppImage"
         env:
-          QMAKE: ${{ env.Qt6_DIR }}/../../../bin/qmake
-          OUTPUT: Trivo-Linux-x86_64.AppImage
+          QMAKE:  "${{ env.Qt6_DIR }}/../../../bin/qmake"
+          OUTPUT: "Trivo-Linux-x86_64.AppImage"
+          APPIMAGE_EXTRACT_AND_RUN: "1"   # fuse 없는 환경 대응
         run: |
-          # Ensure icon exists
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          cp resources/icons/trivo_app.svg AppDir/usr/share/icons/hicolor/scalable/apps/trivo.svg
-          cp resources/icons/trivo_app.svg AppDir/usr/share/icons/hicolor/256x256/apps/trivo.png || true
-          cp resources/trivo.desktop AppDir/usr/share/applications/trivo.desktop
-
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --plugin qt \
@@ -214,61 +320,72 @@ jobs:
             --desktop-file AppDir/usr/share/applications/trivo.desktop \
             --icon-file resources/icons/trivo_app.svg
 
-          mv Trivo*.AppImage Trivo-Linux-x86_64.AppImage
+          # 생성된 AppImage 이름 정규화
+          find . -maxdepth 1 -name "Trivo*.AppImage" | head -1 | \
+            xargs -I{} mv {} Trivo-Linux-x86_64.AppImage
 
-      - name: Upload artifact
+          echo "AppImage size: $(du -sh Trivo-Linux-x86_64.AppImage)"
+          file Trivo-Linux-x86_64.AppImage
+
+      - name: "⬆️ Upload artifact"
         uses: actions/upload-artifact@v4
         with:
           name: Trivo-Linux-x86_64
           path: Trivo-Linux-x86_64.AppImage
+          if-no-files-found: error
 
-  # ── Release ──────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🚀  GitHub Release  (태그 push 시에만 실행)
+# ─────────────────────────────────────────────────────────────────────────────
   release:
-    name: "🚀 GitHub Release"
+    name: "🚀 Create GitHub Release"
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Download all artifacts
+      - name: "📥 Download all artifacts"
         uses: actions/download-artifact@v4
         with:
           path: dist/
 
-      - name: List artifacts
-        run: find dist/ -type f
+      - name: "📋 List artifacts"
+        run: find dist/ -type f -ls
 
-      - name: Create Release
+      - name: "🚀 Publish Release"
         uses: softprops/action-gh-release@v2
         with:
-          name: "Trivo ${{ github.ref_name }}"
+          name: "🧊 Trivo ${{ github.ref_name }}"
           body: |
             ## 🧊 Trivo ${{ github.ref_name }}
 
-            오픈소스 3D 파일 뷰어 / Open-source 3D File Viewer
+            **오픈소스 3D 파일 뷰어 / Open-source 3D File Viewer**
 
             ### 📥 다운로드 / Downloads
 
-            | 플랫폼 / Platform | 파일 / File |
-            |---|---|
-            | 🪟 Windows 10/11 (x64) | `Trivo-Windows-x64.zip` |
-            | 🍎 macOS 11+ (Universal) | `Trivo-macOS-Universal.dmg` |
-            | 🐧 Linux x86_64 | `Trivo-Linux-x86_64.AppImage` |
+            | 플랫폼 / Platform | 파일 / File | 요구사항 |
+            |---|---|---|
+            | 🪟 Windows 10/11 | `Trivo-Windows-x64.zip` | x64, DirectX 11+ |
+            | 🍎 macOS 11+ | `Trivo-macOS-Universal.dmg` | Apple Silicon / Intel |
+            | 🐧 Linux | `Trivo-Linux-x86_64.AppImage` | `chmod +x` 후 실행 |
 
             ### ✨ 주요 기능 / Features
-            - **30+ 3D 형식** 지원: GLB · GLTF · FBX · OBJ · DAE · STL · PLY · 3DS · BLEND · BVH · ...
+            - **30+ 3D 형식**: GLB · GLTF · FBX · OBJ · DAE · STL · PLY · 3DS · BLEND · BVH · STEP · IGES · IFC · DXF · ...
             - **PBR 렌더링** (OpenGL 4.1 Core Profile)
-            - **다중 모델 씬** — 여러 모델을 하나의 씬에 배치
+            - **다중 모델 씬** — 여러 모델을 하나의 씬에 자유 배치
             - **애니메이션 재생** — 속도 조절 포함
             - **5가지 라이트 프리셋** — Studio / Outdoor / Dramatic / Soft / Night
-            - **다크 / 라이트 테마** 전환
-            - **한국어 / 영어** UI
-            - **드래그 앤 드롭** 지원
+            - **다크 / 라이트 테마** 즉시 전환
+            - **한국어 / 영어 UI** 동시 지원
+            - **드래그 앤 드롭** — 창에 파일을 바로 드롭
 
             ### 🛠 사용 라이브러리 / Libraries
-            - [Qt6](https://www.qt.io) — LGPL v3
-            - [Assimp](https://github.com/assimp/assimp) — BSD 3-Clause
-            - OpenGL 4.1 Core Profile
+            | 라이브러리 | 라이선스 |
+            |---|---|
+            | Qt 6 | LGPL v3 |
+            | Assimp 5.x | BSD 3-Clause |
+            | OpenGL 4.1 | Vendor |
 
           files: |
             dist/**/*.zip

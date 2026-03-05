@@ -1,15 +1,8 @@
 {
   "name": "trivo",
   "version": "1.0.0",
-  "description": "Trivo 3D File Viewer",
-  "homepage": "https://github.com/your-org/trivo",
-  "license": "MIT",
+  "description": "Trivo 3D File Viewer — Assimp dependency only",
   "dependencies": [
-    {
-      "name": "assimp",
-      "version>=": "5.3.0"
-    }
-  ],
-  "builtin-baseline": "2024-01-01",
-  "overrides": []
+    "assimp"
+  ]
 }
