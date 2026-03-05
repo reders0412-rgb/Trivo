@@ -1,30 +1,30 @@
 <RCC>
   <qresource prefix="/icons">
-    <file>icons/trivo_app.svg</file>
-    <file>icons/open.svg</file>
-    <file>icons/add.svg</file>
-    <file>icons/reset.svg</file>
-    <file>icons/play.svg</file>
-    <file>icons/pause.svg</file>
-    <file>icons/camera.svg</file>
-    <file>icons/moon.svg</file>
-    <file>icons/sun.svg</file>
+    <file>icons/trivo_app.ico</file>
+    <file>icons/open.ico</file>
+    <file>icons/add.ico</file>
+    <file>icons/reset.ico</file>
+    <file>icons/play.ico</file>
+    <file>icons/pause.ico</file>
+    <file>icons/camera.ico</file>
+    <file>icons/moon.ico</file>
+    <file>icons/sun.ico</file>
     <!-- Extension icons -->
-    <file>icons/ext_glb.svg</file>
-    <file>icons/ext_gltf.svg</file>
-    <file>icons/ext_fbx.svg</file>
-    <file>icons/ext_obj.svg</file>
-    <file>icons/ext_dae.svg</file>
-    <file>icons/ext_3ds.svg</file>
-    <file>icons/ext_stl.svg</file>
-    <file>icons/ext_ply.svg</file>
-    <file>icons/ext_blend.svg</file>
-    <file>icons/ext_bvh.svg</file>
-    <file>icons/ext_x.svg</file>
-    <file>icons/ext_dxf.svg</file>
-    <file>icons/ext_ifc.svg</file>
-    <file>icons/ext_step.svg</file>
-    <file>icons/ext_iges.svg</file>
-    <file>icons/ext_generic.svg</file>
+    <file>icons/ext_glb.ico</file>
+    <file>icons/ext_gltf.ico</file>
+    <file>icons/ext_fbx.ico</file>
+    <file>icons/ext_obj.ico</file>
+    <file>icons/ext_dae.ico</file>
+    <file>icons/ext_3ds.ico</file>
+    <file>icons/ext_stl.ico</file>
+    <file>icons/ext_ply.ico</file>
+    <file>icons/ext_blend.ico</file>
+    <file>icons/ext_bvh.ico</file>
+    <file>icons/ext_x.ico</file>
+    <file>icons/ext_dxf.ico</file>
+    <file>icons/ext_ifc.ico</file>
+    <file>icons/ext_step.ico</file>
+    <file>icons/ext_iges.ico</file>
+    <file>icons/ext_generic.ico</file>
   </qresource>
 </RCC>
