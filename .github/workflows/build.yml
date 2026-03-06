@@ -39,7 +39,6 @@ jobs:
           cache:    true
 
       # ── vcpkg 캐시 ────────────────────────────────────────────────────────
-      # vcpkg.json 을 워크스페이스 밖에 두어 매니페스트 모드 방지
       - name: "💾 Cache vcpkg"
         id: cache-vcpkg
         uses: actions/cache@v4
@@ -48,17 +47,13 @@ jobs:
           key: vcpkg-win-assimp-${{ runner.os }}-v5
           restore-keys: vcpkg-win-assimp-
 
-      # ── vcpkg 설치 (클래식 모드 — vcpkg.json 없는 별도 디렉토리 사용) ──
+      # ── vcpkg 설치 (클래식 모드) ──────────────────────────────────────────
       - name: "📦 Install Assimp via vcpkg (classic mode)"
         if: steps.cache-vcpkg.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          # 프로젝트 루트와 분리된 디렉토리에 vcpkg 설치
-          # → vcpkg.json 이 없으므로 클래식 모드로 동작
           git clone https://github.com/microsoft/vcpkg.git C:\vcpkg_standalone --depth=1
           C:\vcpkg_standalone\bootstrap-vcpkg.bat -disableMetrics
-
-          # 클래식 모드: 패키지명 직접 지정 가능
           C:\vcpkg_standalone\vcpkg.exe install assimp:x64-windows --classic `
           --vcpkg-root=C:\vcpkg_standalone `
           --no-print-usage
@@ -105,14 +100,42 @@ jobs:
           $qtBin = "$env:QT_ROOT_DIR\bin"
           & "$qtBin\windeployqt.exe" "$dest\Trivo.exe" --no-translations --release
 
-          # 3. vcpkg의 모든 DLL을 한 번에 설치 (이 부분이 핵심!)
+          # 3. vcpkg의 모든 DLL 복사
           $vcpkgBin = "C:\vcpkg_standalone\installed\x64-windows\bin"
           if (Test-Path $vcpkgBin) {
             Get-ChildItem "$vcpkgBin\*.dll" | Copy-Item -Destination $dest -Force
           }
 
-          Write-Host "배포 폴더 내용:"
+          # ✅ FIX: MSVC 런타임 DLL 복사 (없으면 실행 불가!)
+          # vcruntime140.dll, msvcp140.dll, concrt140.dll 등
+          $msvcRedist = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC"
+          if (-not (Test-Path $msvcRedist)) {
+            $msvcRedist = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC"
+          }
+          if (Test-Path $msvcRedist) {
+            $latestRedist = Get-ChildItem $msvcRedist | Sort-Object Name -Descending | Select-Object -First 1
+            $x64Dlls = Join-Path $latestRedist.FullName "x64\Microsoft.VC143.CRT"
+            if (Test-Path $x64Dlls) {
+              Get-ChildItem "$x64Dlls\*.dll" | Copy-Item -Destination $dest -Force
+              Write-Host "✅ MSVC CRT DLLs copied from: $x64Dlls"
+            } else {
+              Write-Host "⚠️  MSVC CRT path not found: $x64Dlls"
+            }
+          } else {
+            Write-Host "⚠️  MSVC Redist not found at expected path"
+          }
+
+          # ✅ FIX: ucrtbase.dll (Universal CRT) — Windows SDK에서 복사
+          # windeployqt가 --ucrt-base-path 없이 실행되면 ucrtbase가 빠질 수 있음
+          $ucrtPath = "C:\Windows\System32\ucrtbase.dll"
+          if (Test-Path $ucrtPath) {
+            Copy-Item $ucrtPath "$dest\" -Force
+            Write-Host "✅ ucrtbase.dll copied"
+          }
+
+          Write-Host "`n배포 폴더 내용:"
           Get-ChildItem $dest | ForEach-Object { Write-Host "  $($_.Name)" }
+          Write-Host "`n총 파일 수: $((Get-ChildItem $dest -Recurse -File).Count)"
 
       - name: "📦 Package ZIP"
         shell: pwsh
