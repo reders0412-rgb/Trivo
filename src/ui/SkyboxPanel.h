@@ -33,6 +33,9 @@ private:
     void setupSkyboxUI();
     void updateSkyboxPreview();
 
+private slots:
+    void onRotationChanged(int value);
+
     std::shared_ptr<Scene> m_scene;
     
     // 스카이박스 타입
