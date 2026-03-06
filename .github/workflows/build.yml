@@ -104,13 +104,9 @@ jobs:
           Write-Host "EXE: $($exe.FullName)"
           Copy-Item $exe.FullName dist\Trivo\Trivo.exe
 
-          # windeployqt
+          # windeployqt (중복 제거 및 경로 수정)
           $qtBin = "$env:QT_ROOT_DIR\bin"
           & "$qtBin\windeployqt.exe" dist\Trivo\Trivo.exe `
-            --no-translations `
-            --no-system-d3d-compiler `
-            --no-opengl-sw `
-            --release
             --no-translations `
             --no-system-d3d-compiler `
             --no-opengl-sw `
