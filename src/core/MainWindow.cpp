@@ -290,9 +290,23 @@ void MainWindow::onAbout()
 
 void MainWindow::onScreenshot()
 {
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    // 1. 진짜 '문서' 폴더 경로 가져오기
+    const QString docPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    
+    // 2. 문서 폴더 안에 'trivo' 폴더 경로 설정
+    const QString targetDir = docPath + "/trivo";
+
+    // 3. 'trivo' 폴더가 없으면 새로 만들기 (중요!)
+    QDir dir;
+    if (!dir.exists(targetDir)) {
+        dir.mkpath(targetDir); 
+    }
+
+    // 4. 파일 이름 결정
     const QString ts  = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
-    const QString out = dir + "/trivo_" + ts + ".png";
+    const QString out = targetDir + "/trivo_" + ts + ".png";
+
+    // 5. 캡처 및 저장
     QPixmap px = m_viewport->grab();
     if (px.save(out)) {
         statusBar()->showMessage(tr("저장됨: ") + out, 4000);

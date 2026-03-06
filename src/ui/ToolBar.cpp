@@ -54,17 +54,6 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     addWidget(spacer);
 
-    // Language combo
-    m_langCombo = new QComboBox(this);
-    m_langCombo->addItem("한국어", "ko");
-    m_langCombo->addItem("English", "en");
-    m_langCombo->setFixedWidth(100);
-    addWidget(m_langCombo);
-    connect(m_langCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int i){
-        emit languageChanged(m_langCombo->itemData(i).toString());
-    });
-
     addSeparator();
 
     // Theme toggle

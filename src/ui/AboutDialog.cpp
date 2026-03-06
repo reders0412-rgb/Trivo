@@ -260,8 +260,7 @@ AboutDialog::AboutDialog(bool dark, QWidget *parent)
     auto *titleBlock = new QVBoxLayout;
     auto *title = new QLabel("<b style='font-size:22px;color:#3a7bd5;'>Trivo</b>", header);
     title->setTextFormat(Qt::RichText);
-    auto *sub = new QLabel("오픈소스 3D 파일 뷰어  /  Open-Source 3D File Viewer\n"
-                           "Version 1.0.0  |  MIT License", header);
+    auto *sub = new QLabel("Version 1.0.0  |  MIT License", header);
     sub->setStyleSheet(dark ? "color:#aaa;font-size:12px;" : "color:#555;font-size:12px;");
     titleBlock->addWidget(title);
     titleBlock->addWidget(sub);
@@ -299,9 +298,7 @@ AboutDialog::AboutDialog(bool dark, QWidget *parent)
   <li>애니메이션 재생 + 속도 조절 / Animation playback + speed control</li>
   <li>5가지 라이트 프리셋 / 5 Light presets (Studio · Outdoor · Dramatic · Soft · Night)</li>
   <li>다크 / 라이트 테마 / Dark &amp; Light theme</li>
-  <li>한국어 / 영어 UI / Korean &amp; English UI</li>
   <li>스크린샷 저장 / Screenshot export (PNG)</li>
-  <li>파일 확장자별 전용 아이콘 / Per-format file icons</li>
   <li>그리드 배경 / Grid background</li>
 </ul>
 
@@ -359,7 +356,7 @@ AboutDialog::AboutDialog(bool dark, QWidget *parent)
 <hr>
 <p>
   🐙 <b>GitHub:</b>
-  <a href="https://github.com/your-org/trivo">https://github.com/your-org/trivo</a>
+  <a href="https://github.com/reders0412-rgb/Trivo">https://github.com/reders0412-rgb/Trivo</a>
 </p>
 )HTML");
 
