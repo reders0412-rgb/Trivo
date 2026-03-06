@@ -330,9 +330,7 @@ signal: skyboxRotationChanged(double rotation)
 
 ---
 
-## 📞 피드백
 
-문제 보고: [GitHub Issues](https://github.com/reders0412-rgb/Trivo/issues)
 
 ---
 
