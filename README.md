@@ -131,4 +131,4 @@ git push origin v1.0.0
 ## 📄 라이선스 / License
 
 MIT License — Copyright (c) 2024 Trivo Contributors  
-자세한 내용은 [LICENSE](LICENSE) 참조.
+자세한 내용은 [LICENSE](LICENSE) 참조. 
