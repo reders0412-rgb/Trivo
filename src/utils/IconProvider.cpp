@@ -55,7 +55,7 @@ static const QMap<QString, unsigned int> &colorMap()
     return m;
 }
 
-static QIcon makeBadgeIcon(const QString &label, unsigned int bgColor)
+QIcon IconProvider::makeBadgeIcon(const QString &label, unsigned int bgColor)
 {
     const int SZ = 64;
     QPixmap px(SZ, SZ);
