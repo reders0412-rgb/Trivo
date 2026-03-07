@@ -1,86 +1,92 @@
 # Trivo 변경 사항 / Changelog
 
-## 이번 업데이트 (2025-03)
+## 이번 업데이트 (2025-03 v2)
 
 ### 🐛 버그 수정
 
-#### 1. 다크 모드 글자 가독성 문제 — `AboutDialog.cpp`
-- `QTabBar`, `QTextBrowser`, `QLabel` 등 모든 위젯에 테마 기반 색상 명시
-- 탭 헤더(정보 / 라이브러리 / 라이선스 전문)가 다크 모드에서 안 보이던 문제 해결
-- `setStyleSheet()`로 dialog 전체에 일관된 `color` 적용
+#### 1. 스크린샷 흰색 깜빡임 — `Viewport.cpp`
+- `takeScreenshot()`에서 `makeCurrent()` / `doneCurrent()` 명시적 호출
+- GL 컨텍스트 외부에서 `grabFramebuffer()` 호출하던 문제 해결
 
-#### 2. 3D 포맷 아이콘 생성 안 됨 — `IconProvider.cpp`
-- SVG 리소스 파일 없이도 동작하도록 **프로그래매틱 배지 아이콘** 생성으로 변경
-- 포맷별 고유 색상: GLB(파랑), FBX(빨강), OBJ(초록), BLEND(분홍), CAD류(보라) 등
-- `QPainter`로 둥근 배지 위에 확장자 텍스트를 렌더링 — SVG 파일 의존성 제거
+#### 2. R키 충돌 (카메라 리셋 vs 기즈모 스케일) — `Viewport.cpp`, `ToolBar.cpp`
+- Scale 기즈모 단축키를 **R → T** 로 변경
+- R = 카메라 리셋 전용, Q/W/E/T = 기즈모 전용
+
+#### 3. 모델 선택 안 됨 (Picking 개선) — `Viewport.cpp`
+- `raySphereIntersect`에서 tOut 반환 추가, 가장 가까운 모델 선택
+- 구 반지름을 `scale * 1.8f`로 더 넉넉하게 조정
+
+#### 4. 기즈모가 안 보임 — `Viewport.cpp`, `Renderer.cpp`
+- 독립 GL 셰이더(`GIZMO_VERT/FRAG`)로 기즈모 선 오버레이 직접 드로우
+- `glDisable(GL_DEPTH_TEST)`로 모델 위에 항상 보이게 처리
+- 이동/크기 → 3색 화살표 (X=빨강, Y=초록, Z=파랑)
+- 회전 → 3색 원형 링 (16세그먼트)
 
 ---
 
 ### ✨ 새 기능
 
-#### 3. 언어 전환 제거 — `ToolBar.cpp / .h`
-- 언어 콤보박스 제거, 한국어/영어 혼합 고정 표기 유지
+#### 5. 조명 밝기 + 그림자 → 환경 탭으로 이동 — `Sidebar.cpp`, `ToolBar.cpp`
+- 툴바에서 조명 슬라이더 제거
+- **환경(Env)탭**에:
+  - `조명 밝기 / Light Intensity` — 슬라이더 0.25× ~ 8.0×, 기본 **4.0×**
+  - `그림자 밝기 / Ambient` — 슬라이더 0% ~ 100%, 기본 15%
+  - `소프트 그림자 / Soft Shadows` — 체크 시 Ambient 40%로 자동 설정
 
-#### 4. Unity 스타일 씬 오브젝트 조작 — `Viewport.cpp / .h`
-- 씬에서 **좌클릭**으로 모델 선택 (ray-sphere picking)
-- 툴바의 기즈모 버튼 또는 단축키로 조작 모드 전환:
-  - `✖` / `Q` — 선택 해제 (카메라 이동 모드)
-  - `↔` / `W` — **이동 (Translate)**
-  - `↻` / `E` — **회전 (Rotate)**
-  - `⤢` / `R` — **크기 (Scale)**
-- 선택된 모델은 황금색으로 하이라이트
+#### 6. 조명 기본값 4배, 범위 1/4 ~ 8배
+- `Scene::m_lightMult` 기본값 4.0f
+- 슬라이더 범위: 25~800 (= 0.25× ~ 8.0×)
 
-#### 5. 모델 선택 시 정보 표시 — `ScenePanel.cpp / .h`
-- 씬 패널에 선택된 모델의 상세 정보 표시:
-  - 파일명, 확장자, 파일 크기
-  - 버텍스 수, 삼각형 수, 메시 수, 재질 수, 본 수
-  - 애니메이션 여부 (🎬)
-- 뷰포트 클릭 선택과 사이드바 목록 선택 양방향 동기화
+#### 7. 캡처 후 미리보기 + 폴더 열기 — `MainWindow.cpp`
+- 스크린샷 저장 즉시 비모달 다이얼로그 팝업
+- 썸네일 미리보기 (480×300 fit)
+- **이미지 열기** — OS 기본 이미지 뷰어로 직접 오픈
+- **폴더 열기** — 저장 폴더를 탐색기/파인더로 열기
 
-#### 6. 스크린샷 씬 뷰만 캡처 — `Viewport.cpp`, `MainWindow.cpp`
-- `m_viewport->takeScreenshot()` — `grabFramebuffer()` 사용
-- UI 크롬(툴바, 사이드바) 제외하고 OpenGL 씬만 PNG로 저장
+#### 8. 기본 3D 뷰어 등록 — `MainWindow.cpp`
+- `파일 → 기본 3D 뷰어로 설정` 메뉴 추가
+- **Windows**: HKCU 레지스트리에 모든 지원 확장자 등록 + 셸 아이콘 연결
+- **Linux**: `xdg-mime` + `~/.local/share/applications/trivo.desktop` 생성
+- **macOS**: Finder 우클릭 안내 메시지
 
-#### 7. 조명 밝기 조정 (최대 4배) — `ToolBar.cpp`, `Scene.h/.cpp`, `Renderer.cpp`
-- 툴바에 `💡` 슬라이더 추가 (0× ~ 4×, 기본 1×)
-- `Scene::lightIntensityMultiplier` 필드로 관리
-- `Renderer::bindLights()`에서 `l.intensity * mult` 적용
+#### 9. ICO 파일 아이콘 실제 사용 — `IconProvider.cpp`
+- `resources/icons/ext_*.ico` 를 QRC 통해 실제로 로드
+- Qt 리소스 시스템 → ICO 파일이 없을 때만 프로그래매틱 배지 fallback
 
-#### 8. 텍스처 보이기 / 와이어프레임 모드 — `ToolBar.cpp`, `Scene.h/.cpp`, `Renderer.cpp`
-- 툴바 `🖼` 버튼 토글
-  - **ON** — 기본 PBR 렌더링
-  - **OFF** — 중성 회색 솔리드 + 파란 와이어프레임 오버레이 (선택 시 황금색)
-- GLSL `uRenderMode` uniform으로 shader 내 분기
+#### 10. 도움말에 아이콘 출처 탭 추가 — `AboutDialog.cpp`
+- `아이콘 출처 / Assets` 탭 신설
+- 모든 ICO 파일 목록 + 출처 표시 (자체 제작 / 외부 등)
+- 이모지·폰트 출처 명시
 
 ---
 
-### 📁 수정된 파일 목록
-
-| 파일 | 변경 내용 |
-|------|-----------|
-| `src/ui/AboutDialog.cpp` | 다크모드 색상 전체 수정 |
-| `src/utils/IconProvider.h/.cpp` | 프로그래매틱 배지 아이콘 |
-| `src/ui/ToolBar.h/.cpp` | 기즈모 버튼, 텍스처 토글, 밝기 슬라이더, 언어 전환 제거 |
-| `src/core/Scene.h/.cpp` | selectedIndex, textureVisible, lightIntensityMultiplier 추가 |
-| `src/core/Renderer.h/.cpp` | uRenderMode, uSelectionHighlight, 밝기 배수, 와이어프레임 셰이더 |
-| `src/core/Viewport.h/.cpp` | ray picking, gizmo drag, 씬뷰 스크린샷 |
-| `src/ui/ScenePanel.h/.cpp` | 모델 정보 패널, 양방향 선택 동기화 |
-| `src/ui/Sidebar.h/.cpp` | syncSelection() 추가 |
-| `src/core/MainWindow.h/.cpp` | 모든 새 시그널 연결, 스크린샷 씬뷰 전용 |
-
----
-
-### ⌨️ 단축키 요약
+### 🔑 단축키 정리
 
 | 키 | 동작 |
 |----|------|
-| `Q` | 기즈모 없음 (카메라 모드) |
+| `R` | 카메라 리셋 (R에서 기즈모 충돌 제거) |
+| `Q` | 기즈모 없음 |
 | `W` | 이동 기즈모 |
 | `E` | 회전 기즈모 |
-| `R` | 카메라 리셋 |
+| `T` | 크기 기즈모 (Scale) — 이전 R에서 변경 |
 | `F` | 씬에 맞춤 |
 | `Space` | 애니메이션 재생/정지 |
 | `Ctrl+O` | 파일 열기 |
 | `Ctrl+Shift+O` | 씬에 추가 |
-| `Ctrl+P` | 스크린샷 (씬 뷰만) |
+| `Ctrl+P` | 스크린샷 |
 | `Ctrl+T` | 다크/라이트 전환 |
+
+---
+
+### 📁 수정된 파일
+
+| 파일 | 변경 |
+|------|------|
+| `src/core/Viewport.cpp/.h` | 기즈모 GL 오버레이, 픽킹 수정, R키 분리, 깜빡임 수정 |
+| `src/core/Scene.h/.cpp` | ambientStrength 추가, 기본 lightMult=4.0 |
+| `src/core/MainWindow.cpp/.h` | 스크린샷 미리보기 다이얼로그, 기본앱 등록 메뉴 |
+| `src/ui/Sidebar.h/.cpp` | 조명 밝기+그림자 슬라이더 환경탭 추가 |
+| `src/ui/ToolBar.h/.cpp` | 조명 슬라이더 제거, Scale 단축키 T로 변경 |
+| `src/ui/AboutDialog.cpp` | 아이콘 출처 탭(Assets) 추가 |
+| `src/utils/IconProvider.cpp/.h` | ICO 파일 실제 로드 우선, 배지 fallback |
+| `src/main.cpp` | ICO 기반 앱 아이콘 |

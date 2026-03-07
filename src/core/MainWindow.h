@@ -3,8 +3,8 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <memory>
+#include "../core/Viewport.h"
 
-class Viewport;
 class Sidebar;
 class ToolBar;
 class InfoPanel;
@@ -14,7 +14,6 @@ class DropOverlay;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
@@ -42,7 +41,7 @@ private slots:
     void onModelSelected(int index);
     void onGizmoModeChanged(int mode);
     void onTextureVisibleChanged(bool visible);
-    void onLightIntensityChanged(double mult);
+    void onRegisterFileAssociation();
 
 private:
     void setupUI();
@@ -50,7 +49,6 @@ private:
     void applyTheme(bool dark);
     void saveSettings();
     void loadSettings();
-    void retranslateUI();
 
     Viewport    *m_viewport    = nullptr;
     Sidebar     *m_sidebar     = nullptr;

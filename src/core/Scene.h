@@ -19,16 +19,13 @@ struct SceneModel {
     int      meshCount = 0;
     int      matCount  = 0;
     int      boneCount = 0;
-    // GPU handle filled by Renderer
     unsigned int vao = 0;
-    // raw assimp scene (managed by ModelLoader)
     void *assimpScene = nullptr;
 };
 
 class Scene : public QObject
 {
     Q_OBJECT
-
 public:
     explicit Scene(QObject *parent = nullptr);
 
@@ -47,12 +44,16 @@ public:
     std::shared_ptr<SceneModel> selectedModel() const;
 
     // Render mode
-    bool textureVisible() const  { return m_textureVisible; }
+    bool textureVisible() const    { return m_textureVisible; }
     void setTextureVisible(bool v) { m_textureVisible = v; emit renderModeChanged(); }
 
-    // Global light intensity multiplier
+    // Global light intensity multiplier (0.25 ~ 8.0, default 4.0)
     float lightIntensityMultiplier() const { return m_lightMult; }
     void  setLightIntensityMultiplier(float v) { m_lightMult = v; emit lightMultiplierChanged(v); }
+
+    // Ambient strength (0.0 ~ 1.0, default 0.15)
+    float ambientStrength() const { return m_ambientStr; }
+    void  setAmbientStrength(float v) { m_ambientStr = v; emit ambientChanged(v); }
 
 signals:
     void modelAdded(std::shared_ptr<SceneModel>);
@@ -62,11 +63,13 @@ signals:
     void selectionChanged(int index);
     void renderModeChanged();
     void lightMultiplierChanged(float v);
+    void ambientChanged(float v);
 
 private:
     std::vector<std::shared_ptr<SceneModel>> m_models;
     QColor m_bgColor{30, 30, 38};
-    int    m_selectedIndex = -1;
+    int    m_selectedIndex  = -1;
     bool   m_textureVisible = true;
-    float  m_lightMult = 1.0f;
+    float  m_lightMult      = 4.0f;   // 기본 4배
+    float  m_ambientStr     = 0.15f;
 };

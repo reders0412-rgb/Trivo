@@ -1,6 +1,7 @@
 #pragma once
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_1_Core>
+#include <QOpenGLShaderProgram>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QTimer>
@@ -12,10 +13,7 @@
 class Scene;
 class Renderer;
 
-// Gizmo mode: 0=none, 1=translate, 2=rotate, 3=scale
 enum class GizmoMode { None = 0, Translate = 1, Rotate = 2, Scale = 3 };
-// Gizmo axis: 0=none, 1=X, 2=Y, 3=Z
-enum class GizmoAxis { None = 0, X = 1, Y = 2, Z = 3 };
 
 class Viewport : public QOpenGLWidget, protected QOpenGLFunctions_4_1_Core
 {
@@ -31,14 +29,15 @@ public:
     void setBackgroundColor(const QColor &c);
     QColor backgroundColor() const;
 
-    // Screenshot of the scene viewport only
+    // 씬 뷰만 캡처 (깜빡임 없음)
     void takeScreenshot(const QString &outputPath);
 
-    // Gizmo mode
     void setGizmoMode(GizmoMode mode);
+    GizmoMode gizmoMode() const { return m_gizmoMode; }
 
 signals:
     void modelSelected(int index);
+    void gizmoModeChangedByKey(int mode);  // 키보드로 변경 시 툴바 동기화
 
 protected:
     void initializeGL()                    override;
@@ -55,12 +54,19 @@ private slots:
     void onModelAdded();
 
 private:
-    // Ray-cast picking: returns model index or -1
-    int  pickModel(const QPoint &screenPos);
-    // Convert screen delta → world-space gizmo delta
+    // --- Picking ---
+    int  pickModel(const QPoint &pos);
+    void screenToRay(const QPoint &p, QVector3D &ro, QVector3D &rd) const;
+
+    // --- Gizmo GL 오버레이 ---
+    void setupGizmoShader();
+    void drawGizmoOverlay();
+    // 기즈모 축 화살표 드로우 (NDC 공간)
+    void drawAxisArrow(const QVector3D &origin, const QVector3D &dir,
+                       const QVector4D &color, float len);
+
+    // --- Drag ---
     void applyGizmoDrag(const QPoint &delta);
-    // Compute a ray in world space from screen position
-    void screenToRay(const QPoint &p, QVector3D &rayOrigin, QVector3D &rayDir) const;
 
     std::shared_ptr<Scene>    m_scene;
     std::unique_ptr<Renderer> m_renderer;
@@ -69,9 +75,13 @@ private:
     AnimationPlayer           m_anim;
     QTimer                    m_frameTimer;
     QPoint                    m_lastMousePos;
-    Qt::MouseButton           m_activeButton  = Qt::NoButton;
-    bool                      m_glReady       = false;
+    Qt::MouseButton           m_activeButton   = Qt::NoButton;
+    bool                      m_glReady        = false;
+    bool                      m_draggingGizmo  = false;
 
-    GizmoMode   m_gizmoMode    = GizmoMode::None;
-    bool        m_draggingGizmo = false;  // true when dragging selected model
+    GizmoMode   m_gizmoMode = GizmoMode::None;
+
+    // Gizmo overlay shader
+    std::unique_ptr<QOpenGLShaderProgram> m_gizmoShader;
+    unsigned int m_gizmoVao = 0, m_gizmoVbo = 0;
 };

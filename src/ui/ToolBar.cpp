@@ -3,7 +3,6 @@
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QAction>
-#include <QSlider>
 #include <QWidget>
 #include <QActionGroup>
 
@@ -21,17 +20,17 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
     addSeparator();
 
     // ── Camera ───────────────────────────────────────────────────────────────
-    addAction(IconProvider::resetIcon(), "카메라 초기화 / Reset Camera",
+    addAction(IconProvider::resetIcon(), "카메라 초기화 / Reset Camera  [R]",
               this, &ToolBar::resetCameraRequested);
 
     addSeparator();
 
-    // ── Gizmo mode (W/E/R like Unity) ────────────────────────────────────────
+    // ── Gizmo mode (Q/W/E — R은 카메라 리셋에 사용) ──────────────────────────
     auto *gizmoGroup = new QActionGroup(this);
     gizmoGroup->setExclusive(true);
 
     m_gizmoNone = new QAction("✖", this);
-    m_gizmoNone->setToolTip("선택 해제 / No Gizmo");
+    m_gizmoNone->setToolTip("선택 없음 / No Gizmo  [Q]");
     m_gizmoNone->setCheckable(true);
     m_gizmoNone->setChecked(true);
     gizmoGroup->addAction(m_gizmoNone);
@@ -50,7 +49,7 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
     addAction(m_gizmoRotate);
 
     m_gizmoScale = new QAction("⤢", this);
-    m_gizmoScale->setToolTip("크기 / Scale  [R]");
+    m_gizmoScale->setToolTip("크기 / Scale  [T]");
     m_gizmoScale->setCheckable(true);
     gizmoGroup->addAction(m_gizmoScale);
     addAction(m_gizmoScale);
@@ -64,22 +63,20 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
 
     // ── Texture toggle ────────────────────────────────────────────────────────
     m_textureAction = new QAction("🖼", this);
-    m_textureAction->setToolTip("텍스처 표시 / Texture Visible");
+    m_textureAction->setToolTip("PBR 렌더 ↔ 와이어프레임 / PBR ↔ Wireframe");
     m_textureAction->setCheckable(true);
     m_textureAction->setChecked(true);
     addAction(m_textureAction);
     connect(m_textureAction, &QAction::toggled, this, [this](bool on){
         m_textureVisible = on;
         m_textureAction->setText(on ? "🖼" : "⬜");
-        m_textureAction->setToolTip(on ? "텍스처 표시 / Texture Visible"
-                                       : "와이어프레임 / Wireframe");
         emit textureVisibleChanged(on);
     });
 
     addSeparator();
 
     // ── Animation ─────────────────────────────────────────────────────────────
-    m_playAction = addAction(IconProvider::playIcon(), "재생/정지 / Play/Pause",
+    m_playAction = addAction(IconProvider::playIcon(), "재생/정지 / Play/Pause  [Space]",
                              this, &ToolBar::animationToggled);
 
     auto *speedLabel = new QLabel("  속도:", this);
@@ -97,25 +94,8 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
 
     addSeparator();
 
-    // ── Light intensity ───────────────────────────────────────────────────────
-    auto *lightLabel = new QLabel("  💡:", this);
-    lightLabel->setToolTip("조명 밝기 / Light Intensity");
-    addWidget(lightLabel);
-
-    m_lightSlider = new QSlider(Qt::Horizontal, this);
-    m_lightSlider->setRange(0, 400);   // 0.00 ~ 4.00
-    m_lightSlider->setValue(100);      // default 1.0×
-    m_lightSlider->setFixedWidth(90);
-    m_lightSlider->setToolTip("조명 밝기 / Light Intensity  (0× ~ 4×)");
-    addWidget(m_lightSlider);
-    connect(m_lightSlider, &QSlider::valueChanged, this, [this](int v){
-        emit lightIntensityChanged(v / 100.0);
-    });
-
-    addSeparator();
-
     // ── Screenshot ───────────────────────────────────────────────────────────
-    addAction(IconProvider::screenshotIcon(), "스크린샷 / Screenshot",
+    addAction(IconProvider::screenshotIcon(), "스크린샷 / Screenshot  [Ctrl+P]",
               this, &ToolBar::screenshotRequested);
 
     // ── Spacer + Theme ────────────────────────────────────────────────────────
@@ -123,7 +103,7 @@ ToolBar::ToolBar(QWidget *parent) : QToolBar(parent)
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     addWidget(spacer);
 
-    m_themeAction = addAction(IconProvider::darkThemeIcon(), "다크/라이트 / Theme",
+    m_themeAction = addAction(IconProvider::darkThemeIcon(), "다크/라이트 / Theme  [Ctrl+T]",
                               this, &ToolBar::themeToggled);
 }
 
@@ -132,4 +112,15 @@ void ToolBar::updateThemeIcon(bool dark)
     if (m_themeAction)
         m_themeAction->setIcon(dark ? IconProvider::lightThemeIcon()
                                     : IconProvider::darkThemeIcon());
+}
+
+void ToolBar::setGizmoMode(int mode)
+{
+    // 단축키로 모드 변경 시 툴바 버튼도 동기화
+    switch (mode) {
+    case 0: if (m_gizmoNone)      m_gizmoNone->setChecked(true);      break;
+    case 1: if (m_gizmoTranslate) m_gizmoTranslate->setChecked(true); break;
+    case 2: if (m_gizmoRotate)    m_gizmoRotate->setChecked(true);     break;
+    case 3: if (m_gizmoScale)     m_gizmoScale->setChecked(true);      break;
+    }
 }
