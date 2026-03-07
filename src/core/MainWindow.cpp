@@ -9,7 +9,6 @@
 #include "../i18n/I18n.h"
 #include "../utils/FileUtils.h"
 
-#include <QFileDevice>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QSplitter>
@@ -93,6 +92,7 @@ void MainWindow::setupUI()
     connect(m_toolbar, &ToolBar::addFileRequested,     this, &MainWindow::onAddFile);
     connect(m_toolbar, &ToolBar::clearSceneRequested,  this, &MainWindow::onClearScene);
     connect(m_toolbar, &ToolBar::themeToggled,         this, &MainWindow::onToggleTheme);
+    connect(m_toolbar, &ToolBar::languageChanged,      this, &MainWindow::onLanguageChanged);
     connect(m_toolbar, &ToolBar::resetCameraRequested, this, &MainWindow::onResetCamera);
     connect(m_toolbar, &ToolBar::screenshotRequested,  this, &MainWindow::onScreenshot);
     connect(m_toolbar, &ToolBar::animationToggled,     this, &MainWindow::onToggleAnimation);
@@ -275,6 +275,12 @@ void MainWindow::onResetCamera()      { m_viewport->resetCamera(); }
 void MainWindow::onToggleAnimation()  { m_viewport->toggleAnimation(); }
 void MainWindow::onAnimationSpeedChanged(double s) { m_viewport->setAnimationSpeed(s); }
 void MainWindow::onLightPresetChanged(int i) { m_viewport->setLightPreset(i); }
+
+void MainWindow::onLanguageChanged(const QString &lang)
+{
+    I18n::instance().setLanguage(lang);
+    retranslateUI();
+}
 
 void MainWindow::onAbout()
 {

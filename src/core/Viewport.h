@@ -41,17 +41,6 @@ private slots:
     void onModelAdded();
 
 private:
-    // 마우스 피킹 - 레이캐스트로 선택된 모델 찾기
-    int pickModel(int x, int y);
-    
-    // 변환 모드
-    enum class TransformMode {
-        None,
-        Move,      // G키
-        Rotate,    // R키
-        Scale      // S키
-    };
-    
     std::shared_ptr<Scene>    m_scene;
     std::unique_ptr<Renderer> m_renderer;
     Camera                    m_camera;
@@ -61,8 +50,4 @@ private:
     QPoint                    m_lastMousePos;
     Qt::MouseButton           m_activeButton = Qt::NoButton;
     bool                      m_glReady      = false;
-    
-    // 변환 도구
-    TransformMode             m_transformMode = TransformMode::None;
-    int                       m_selectedModelIdx = -1;
 };

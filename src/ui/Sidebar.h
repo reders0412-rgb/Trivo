@@ -4,9 +4,6 @@
 
 class Scene;
 class ScenePanel;
-class ToolsPanel;
-class TexturePanel;
-class SkyboxPanel;
 class QTabWidget;
 
 class Sidebar : public QWidget
@@ -26,8 +23,5 @@ signals:
 private:
     std::shared_ptr<Scene> m_scene;
     ScenePanel *m_scenePanel = nullptr;
-    ToolsPanel *m_toolsPanel = nullptr;
-    TexturePanel *m_texturePanel = nullptr;
-    SkyboxPanel *m_skyboxPanel = nullptr;
     QTabWidget *m_tabs       = nullptr;
 };

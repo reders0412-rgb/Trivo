@@ -458,18 +458,6 @@ AboutDialog::AboutDialog(bool dark, QWidget *parent)
     mono.setStyleHint(QFont::Monospace);
     licBrowser->setFont(mono);
     licBrowser->setPlainText(LICENSE_FULL);
-    
-    // 다크 모드에서 텍스트 가독성 개선
-    if (dark) {
-        licBrowser->setStyleSheet(
-            "QTextBrowser { color: #e8e8ec; background: #1a1a1f; }"
-        );
-    } else {
-        licBrowser->setStyleSheet(
-            "QTextBrowser { color: #1a1a2e; background: #ffffff; }"
-        );
-    }
-    
     licL->addWidget(licBrowser);
     tabs->addTab(licW, "라이선스 전문 / Full Licenses");
 

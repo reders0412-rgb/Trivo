@@ -69,6 +69,21 @@
 | Qt | 6.4+ |
 | Assimp | 5.x |
 
+### Linux / macOS (로컬)
+
+```bash
+# Ubuntu
+sudo apt-get install libassimp-dev qt6-base-dev libqt6opengl6-dev
+
+# macOS
+brew install assimp qt6
+
+# 빌드
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+./build/Release/Trivo
+```
+
 ### Windows (로컬)
 
 ```powershell
@@ -111,8 +126,8 @@ git push origin v1.0.0
 
 빌드 결과물:
 - `Trivo-Windows-x64.zip` — windeployqt 포함 (바로 실행 가능)
-- `Trivo-macOS-Universal.dmg` — arm64 + x86_64 Universal Binary(안 됨)
-- `Trivo-Linux-x86_64.AppImage` — `chmod +x` 후 바로 실행(안 됨)
+- `Trivo-macOS-Universal.dmg` — arm64 + x86_64 Universal Binary
+- `Trivo-Linux-x86_64.AppImage` — `chmod +x` 후 바로 실행
 
 ---
 
@@ -131,4 +146,4 @@ git push origin v1.0.0
 ## 📄 라이선스 / License
 
 MIT License — Copyright (c) 2024 Trivo Contributors  
-자세한 내용은 [LICENSE](LICENSE) 참조. 
+자세한 내용은 [LICENSE](LICENSE) 참조.

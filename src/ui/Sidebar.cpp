@@ -1,8 +1,5 @@
 #include "Sidebar.h"
 #include "ScenePanel.h"
-#include "ToolsPanel.h"
-#include "TexturePanel.h"
-#include "SkyboxPanel.h"
 #include "../core/Scene.h"
 #include "../core/LightSystem.h"
 #include <QTabWidget>
@@ -21,23 +18,11 @@ Sidebar::Sidebar(std::shared_ptr<Scene> scene, QWidget *parent)
 
     m_tabs = new QTabWidget(this);
 
-    // ── 도구 탭 ────────────────────────────────────────────────────────────────
-    m_toolsPanel = new ToolsPanel(scene, this);
-    m_tabs->addTab(m_toolsPanel, "🔧 도구 / Tools");
-
-    // ── 씬 탭 ─────────────────────────────────────────────────────────────────
+    // ── Scene tab ─────────────────────────────────────────────────────────────
     m_scenePanel = new ScenePanel(scene, this);
     m_tabs->addTab(m_scenePanel, "씬 / Scene");
 
-    // ── 텍스처 탭 ──────────────────────────────────────────────────────────────
-    m_texturePanel = new TexturePanel(scene, this);
-    m_tabs->addTab(m_texturePanel, "🎨 텍스처 / Texture");
-
-    // ── 스카이박스 탭 ──────────────────────────────────────────────────────────
-    m_skyboxPanel = new SkyboxPanel(scene, this);
-    m_tabs->addTab(m_skyboxPanel, "🌅 스카이박스 / Skybox");
-
-    // ── 환경 탭 ────────────────────────────────────────────────────────────────
+    // ── Environment tab ───────────────────────────────────────────────────────
     auto *envWidget = new QWidget(this);
     auto *envLayout = new QVBoxLayout(envWidget);
     envLayout->setContentsMargins(12, 12, 12, 12);

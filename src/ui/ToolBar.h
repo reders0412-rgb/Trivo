@@ -18,6 +18,7 @@ signals:
     void addFileRequested();
     void clearSceneRequested();
     void themeToggled();
+    void languageChanged(const QString &lang);
     void resetCameraRequested();
     void screenshotRequested();
     void animationToggled();
@@ -26,5 +27,6 @@ signals:
 private:
     QAction     *m_themeAction = nullptr;
     QAction     *m_playAction  = nullptr;
+    QComboBox   *m_langCombo   = nullptr;
     QDoubleSpinBox *m_speedSpin = nullptr;
 };

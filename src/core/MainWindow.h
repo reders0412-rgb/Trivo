@@ -32,6 +32,7 @@ private slots:
     void onAddFile();
     void onClearScene();
     void onToggleTheme();
+    void onLanguageChanged(const QString &lang);
     void onAbout();
     void onResetCamera();
     void onScreenshot();

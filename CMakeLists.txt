@@ -88,9 +88,6 @@ set(TRIVO_SOURCES
     src/ui/ToolBar.cpp            src/ui/ToolBar.h
     src/ui/AboutDialog.cpp        src/ui/AboutDialog.h
     src/ui/DropOverlay.cpp        src/ui/DropOverlay.h
-    src/ui/ToolsPanel.cpp         src/ui/ToolsPanel.h
-    src/ui/TexturePanel.cpp       src/ui/TexturePanel.h
-    src/ui/SkyboxPanel.cpp        src/ui/SkyboxPanel.h
 
     src/i18n/I18n.cpp             src/i18n/I18n.h
 
