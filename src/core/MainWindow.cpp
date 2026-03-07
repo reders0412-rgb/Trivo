@@ -129,26 +129,64 @@ void MainWindow::setupUI()
 
 void MainWindow::setupMenuBar()
 {
-    auto *fileMenu = menuBar()->addMenu(tr("파일 / File"));
-    auto *a = menu->addAction(tr("열기"), this, &MainWindow::onOpen);
-    a->setShortcut(QKeySequence::Open);
-    fileMenu->addAction(tr("씬에 추가…"),     this, &MainWindow::onAddFile,  QKeySequence("Ctrl+Shift+O"));
-    fileMenu->addSeparator();
-    fileMenu->addAction(tr("스크린샷 저장"),  this, &MainWindow::onScreenshot, QKeySequence("Ctrl+P"));
-    fileMenu->addSeparator();
-    fileMenu->addAction(tr("🔗 기본 3D 뷰어로 설정 / Register as Default Viewer"),
-                        this, &MainWindow::onRegisterFileAssociation);
-    fileMenu->addSeparator();
-    fileMenu->addAction(tr("종료"), this, &QMainWindow::close, QKeySequence::Quit);
+    // ── File ──────────────────────────────────────────────────────────────────
+    QMenu *fileMenu = menuBar()->addMenu(tr("파일 / File"));
 
-    auto *viewMenu = menuBar()->addMenu(tr("보기 / View"));
-    viewMenu->addAction(tr("카메라 초기화"), this, &MainWindow::onResetCamera, QKeySequence("R"));
-    viewMenu->addAction(tr("씬 비우기"),    this, &MainWindow::onClearScene);
+    QAction *actOpen = new QAction(tr("열기…"), this);
+    actOpen->setShortcut(QKeySequence::Open);
+    connect(actOpen, &QAction::triggered, this, &MainWindow::onOpenFile);
+    fileMenu->addAction(actOpen);
+
+    QAction *actAdd = new QAction(tr("씬에 추가…"), this);
+    actAdd->setShortcut(QKeySequence("Ctrl+Shift+O"));
+    connect(actAdd, &QAction::triggered, this, &MainWindow::onAddFile);
+    fileMenu->addAction(actAdd);
+
+    fileMenu->addSeparator();
+
+    QAction *actShot = new QAction(tr("스크린샷 저장"), this);
+    actShot->setShortcut(QKeySequence("Ctrl+P"));
+    connect(actShot, &QAction::triggered, this, &MainWindow::onScreenshot);
+    fileMenu->addAction(actShot);
+
+    fileMenu->addSeparator();
+
+    QAction *actReg = new QAction(tr("기본 3D 뷰어로 설정 / Register as Default Viewer"), this);
+    connect(actReg, &QAction::triggered, this, &MainWindow::onRegisterFileAssociation);
+    fileMenu->addAction(actReg);
+
+    fileMenu->addSeparator();
+
+    QAction *actQuit = new QAction(tr("종료"), this);
+    actQuit->setShortcut(QKeySequence::Quit);
+    connect(actQuit, &QAction::triggered, this, &QMainWindow::close);
+    fileMenu->addAction(actQuit);
+
+    // ── View ──────────────────────────────────────────────────────────────────
+    QMenu *viewMenu = menuBar()->addMenu(tr("보기 / View"));
+
+    QAction *actReset = new QAction(tr("카메라 초기화"), this);
+    actReset->setShortcut(QKeySequence("R"));
+    connect(actReset, &QAction::triggered, this, &MainWindow::onResetCamera);
+    viewMenu->addAction(actReset);
+
+    QAction *actClear = new QAction(tr("씬 비우기"), this);
+    connect(actClear, &QAction::triggered, this, &MainWindow::onClearScene);
+    viewMenu->addAction(actClear);
+
     viewMenu->addSeparator();
-    viewMenu->addAction(tr("다크/라이트 전환"), this, &MainWindow::onToggleTheme, QKeySequence("Ctrl+T"));
 
-    auto *helpMenu = menuBar()->addMenu(tr("도움말 / Help"));
-    helpMenu->addAction(tr("Trivo 정보…"), this, &MainWindow::onAbout);
+    QAction *actTheme = new QAction(tr("다크/라이트 전환"), this);
+    actTheme->setShortcut(QKeySequence("Ctrl+T"));
+    connect(actTheme, &QAction::triggered, this, &MainWindow::onToggleTheme);
+    viewMenu->addAction(actTheme);
+
+    // ── Help ──────────────────────────────────────────────────────────────────
+    QMenu *helpMenu = menuBar()->addMenu(tr("도움말 / Help"));
+
+    QAction *actAbout = new QAction(tr("Trivo 정보…"), this);
+    connect(actAbout, &QAction::triggered, this, &MainWindow::onAbout);
+    helpMenu->addAction(actAbout);
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
