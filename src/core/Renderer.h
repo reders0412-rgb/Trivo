@@ -16,7 +16,6 @@ struct aiNode;
 struct GpuMesh {
     unsigned int vao = 0, vbo = 0, ebo = 0;
     int indexCount = 0;
-    // material colours
     float baseColorR = 0.8f, baseColorG = 0.8f, baseColorB = 0.8f;
     float roughness  = 0.5f;
     float metallic   = 0.0f;
@@ -47,13 +46,13 @@ private:
     void uploadMeshes(GpuModel &gpu, const aiScene *sc, const aiNode *node);
     GpuMesh uploadMesh(const aiMesh *m, const aiScene *sc);
     void setupShaders();
-    void bindLights(const LightSystem &lights);
-    void drawGrid();
+    void bindLights(const LightSystem &lights, float intensityMult);
+    void drawGrid(const QMatrix4x4 &vp);
 
     std::unique_ptr<QOpenGLShaderProgram> m_pbr;
     std::unique_ptr<QOpenGLShaderProgram> m_grid;
+    std::unique_ptr<QOpenGLShaderProgram> m_wire;  // wireframe / outline
 
-    // model path → GPU resources
     std::unordered_map<void*, GpuModel> m_gpuModels;
 
     unsigned int m_gridVao = 0, m_gridVbo = 0;

@@ -12,8 +12,8 @@ class Sidebar : public QWidget
 public:
     explicit Sidebar(std::shared_ptr<Scene> scene, QWidget *parent = nullptr);
 
-public slots:
     void refresh();
+    void syncSelection(int index);
 
 signals:
     void backgroundColorChangeRequested();

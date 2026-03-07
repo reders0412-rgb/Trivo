@@ -26,11 +26,12 @@ Sidebar::Sidebar(std::shared_ptr<Scene> scene, QWidget *parent)
     auto *envWidget = new QWidget(this);
     auto *envLayout = new QVBoxLayout(envWidget);
     envLayout->setContentsMargins(12, 12, 12, 12);
+    envLayout->setSpacing(8);
 
     // Background
     auto *bgGroup = new QGroupBox("배경 / Background", envWidget);
     auto *bgLayout = new QVBoxLayout(bgGroup);
-    auto *bgBtn = new QPushButton("배경색 선택 / Pick Color", bgGroup);
+    auto *bgBtn = new QPushButton("🎨  배경색 선택 / Pick Color", bgGroup);
     connect(bgBtn, &QPushButton::clicked,
             this, &Sidebar::backgroundColorChangeRequested);
     bgLayout->addWidget(bgBtn);
@@ -61,4 +62,9 @@ Sidebar::Sidebar(std::shared_ptr<Scene> scene, QWidget *parent)
 void Sidebar::refresh()
 {
     if (m_scenePanel) m_scenePanel->refresh();
+}
+
+void Sidebar::syncSelection(int index)
+{
+    if (m_scenePanel) m_scenePanel->syncSelection(index);
 }

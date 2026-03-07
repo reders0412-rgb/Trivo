@@ -32,7 +32,6 @@ private slots:
     void onAddFile();
     void onClearScene();
     void onToggleTheme();
-    void onLanguageChanged(const QString &lang);
     void onAbout();
     void onResetCamera();
     void onScreenshot();
@@ -40,6 +39,10 @@ private slots:
     void onAnimationSpeedChanged(double speed);
     void onBackgroundColorChanged();
     void onLightPresetChanged(int index);
+    void onModelSelected(int index);
+    void onGizmoModeChanged(int mode);
+    void onTextureVisibleChanged(bool visible);
+    void onLightIntensityChanged(double mult);
 
 private:
     void setupUI();
@@ -49,14 +52,14 @@ private:
     void loadSettings();
     void retranslateUI();
 
-    Viewport    *m_viewport   = nullptr;
-    Sidebar     *m_sidebar    = nullptr;
-    ToolBar     *m_toolbar    = nullptr;
-    InfoPanel   *m_infoPanel  = nullptr;
+    Viewport    *m_viewport    = nullptr;
+    Sidebar     *m_sidebar     = nullptr;
+    ToolBar     *m_toolbar     = nullptr;
+    InfoPanel   *m_infoPanel   = nullptr;
     DropOverlay *m_dropOverlay = nullptr;
 
     std::shared_ptr<Scene> m_scene;
 
-    bool   m_darkTheme = true;
-    QString m_language = "ko";
+    bool    m_darkTheme = true;
+    QString m_language  = "ko";
 };

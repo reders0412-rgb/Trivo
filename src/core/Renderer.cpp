@@ -51,15 +51,19 @@ uniform vec3  uBaseColor;
 uniform float uRoughness;
 uniform float uMetallic;
 
-// Up to 4 lights
 uniform int   uLightCount;
 uniform vec3  uLightDir[4];
 uniform vec3  uLightColor[4];
 uniform float uLightIntensity[4];
-uniform int   uLightType[4];  // 0=dir 1=point
+uniform int   uLightType[4];
 
 uniform vec3  uAmbient;
 uniform float uAmbientStr;
+
+// Texture / wireframe mode:  0 = normal PBR,  1 = solid (no texture)
+uniform int   uRenderMode;
+// Selection highlight overlay
+uniform float uSelectionHighlight;
 
 const float PI = 3.14159265359;
 
@@ -81,7 +85,15 @@ vec3 fresnelSchlick(float c,vec3 F0){ return F0+(1.0-F0)*pow(clamp(1.0-c,0.0,1.0
 void main(){
     vec3 N = normalize(vNormal);
     vec3 V = normalize(uCamPos - vPos);
-    vec3 albedo = pow(uBaseColor, vec3(2.2)); // linear
+
+    vec3 albedo;
+    if (uRenderMode == 1) {
+        // Solid / no-texture: use a neutral grey
+        albedo = pow(vec3(0.72), vec3(2.2));
+    } else {
+        albedo = pow(uBaseColor, vec3(2.2));
+    }
+
     float metal = uMetallic;
     float rough = max(uRoughness, 0.04);
 
@@ -94,7 +106,7 @@ void main(){
         if(uLightType[i]==0){
             L = normalize(-uLightDir[i]);
         } else {
-            vec3 toL = uLightDir[i] - vPos; // position stored in dir for point
+            vec3 toL = uLightDir[i] - vPos;
             float d  = length(toL);
             L    = toL/d;
             attn = 1.0/(d*d+0.0001);
@@ -117,11 +129,32 @@ void main(){
 
     vec3 ambient = uAmbient * uAmbientStr * albedo;
     vec3 color   = ambient + Lo;
-    // Tone mapping + gamma
     color = color/(color+vec3(1.0));
     color = pow(color, vec3(1.0/2.2));
+
+    // Selection tint: blend with golden yellow
+    if (uSelectionHighlight > 0.0) {
+        vec3 selColor = vec3(1.0, 0.75, 0.1);
+        color = mix(color, selColor, uSelectionHighlight * 0.35);
+    }
+
     fragColor = vec4(color,1.0);
 }
+)GLSL";
+
+// ── Wireframe overlay shader ──────────────────────────────────────────────────
+static const char *WIRE_VERT = R"GLSL(
+#version 410 core
+layout(location=0) in vec3 aPos;
+uniform mat4 uMVP;
+void main(){ gl_Position = uMVP * vec4(aPos,1.0); }
+)GLSL";
+
+static const char *WIRE_FRAG = R"GLSL(
+#version 410 core
+out vec4 fragColor;
+uniform vec4 uColor;
+void main(){ fragColor = uColor; }
 )GLSL";
 
 static const char *GRID_VERT = R"GLSL(
@@ -146,8 +179,6 @@ void main(){
 )GLSL";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Renderer
-// ─────────────────────────────────────────────────────────────────────────────
 
 Renderer::Renderer()  = default;
 Renderer::~Renderer()
@@ -165,15 +196,13 @@ void Renderer::initialize()
 
     setupShaders();
 
-    // ── Build grid geometry ───────────────────────────────────────────────────
+    // Build grid geometry
     std::vector<float> gridVerts;
     const float ext = 100.f;
     const int   N   = 40;
     for (int i = -N; i <= N; ++i) {
         float p = i * (ext / N);
-        // X line
         gridVerts.insert(gridVerts.end(), {-ext, 0, p,  ext, 0, p});
-        // Z line
         gridVerts.insert(gridVerts.end(), {p, 0, -ext,  p, 0, ext});
     }
 
@@ -196,13 +225,18 @@ void Renderer::setupShaders()
     m_pbr->addShaderFromSourceCode(QOpenGLShader::Fragment, PBR_FRAG);
     m_pbr->link();
 
+    m_wire = std::make_unique<QOpenGLShaderProgram>();
+    m_wire->addShaderFromSourceCode(QOpenGLShader::Vertex,   WIRE_VERT);
+    m_wire->addShaderFromSourceCode(QOpenGLShader::Fragment, WIRE_FRAG);
+    m_wire->link();
+
     m_grid = std::make_unique<QOpenGLShaderProgram>();
     m_grid->addShaderFromSourceCode(QOpenGLShader::Vertex,   GRID_VERT);
     m_grid->addShaderFromSourceCode(QOpenGLShader::Fragment, GRID_FRAG);
     m_grid->link();
 }
 
-// ── Render frame ─────────────────────────────────────────────────────────────
+// ── Render frame ──────────────────────────────────────────────────────────────
 
 void Renderer::render(const std::shared_ptr<Scene> &scene,
                        const QMatrix4x4 &view,
@@ -211,37 +245,45 @@ void Renderer::render(const std::shared_ptr<Scene> &scene,
                        const LightSystem &lights,
                        double /*animTime*/)
 {
-    // Draw grid first (transparent)
+    const QMatrix4x4 vp = proj * view;
+
+    // Draw grid first
     m_grid->bind();
-    m_grid->setUniformValue("uVP", proj * view);
+    m_grid->setUniformValue("uVP", vp);
     glBindVertexArray(m_gridVao);
-    // count: (2*N+1)*2 lines, 2 verts each
     glDrawArrays(GL_LINES, 0, (40*2+1)*4);
     glBindVertexArray(0);
     m_grid->release();
 
-    // Draw each model
-    m_pbr->bind();
-    m_pbr->setUniformValue("uCamPos", camPos);
+    // Render mode: 0 = textured/PBR, 1 = solid grey
+    const int renderMode = scene->textureVisible() ? 0 : 1;
+    const float lightMult = scene->lightIntensityMultiplier();
+    const int selectedIdx = scene->selectedIndex();
 
-    // Ambient
+    m_pbr->bind();
+    m_pbr->setUniformValue("uCamPos",    camPos);
+    m_pbr->setUniformValue("uRenderMode", renderMode);
+
     const QColor amb = lights.ambientColor();
     m_pbr->setUniformValue("uAmbient",
         QVector3D(amb.redF(), amb.greenF(), amb.blueF()));
     m_pbr->setUniformValue("uAmbientStr", lights.ambientStrength());
 
-    // Lights
-    bindLights(lights);
+    bindLights(lights, lightMult);
 
+    // Wireframe mode: draw solid then wireframe on top
+    if (!scene->textureVisible()) {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.f, 1.f);
+    }
+
+    int modelIdx = 0;
     for (const auto &model : scene->models()) {
-        if (!model->visible) continue;
+        if (!model->visible) { ++modelIdx; continue; }
 
-        // Upload if needed
-        if (m_gpuModels.find(model->assimpScene) == m_gpuModels.end()) {
+        if (m_gpuModels.find(model->assimpScene) == m_gpuModels.end())
             uploadModel(*model);
-        }
 
-        // Model matrix
         QMatrix4x4 modelMat;
         modelMat.translate(model->position);
         modelMat.rotate(model->rotation.x(), 1,0,0);
@@ -254,55 +296,91 @@ void Renderer::render(const std::shared_ptr<Scene> &scene,
         m_pbr->setUniformValue("uView",      view);
         m_pbr->setUniformValue("uProj",      proj);
         m_pbr->setUniformValue("uNormalMat", normalMat);
+        m_pbr->setUniformValue("uSelectionHighlight",
+            (modelIdx == selectedIdx) ? 1.0f : 0.0f);
 
         auto it = m_gpuModels.find(model->assimpScene);
-        if (it == m_gpuModels.end()) continue;
-
-        for (const auto &mesh : it->second.meshes) {
-            m_pbr->setUniformValue("uBaseColor",
-                QVector3D(mesh.baseColorR, mesh.baseColorG, mesh.baseColorB));
-            m_pbr->setUniformValue("uRoughness", mesh.roughness);
-            m_pbr->setUniformValue("uMetallic",  mesh.metallic);
-
-            glBindVertexArray(mesh.vao);
-            glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, nullptr);
+        if (it != m_gpuModels.end()) {
+            for (const auto &mesh : it->second.meshes) {
+                m_pbr->setUniformValue("uBaseColor",
+                    QVector3D(mesh.baseColorR, mesh.baseColorG, mesh.baseColorB));
+                m_pbr->setUniformValue("uRoughness", mesh.roughness);
+                m_pbr->setUniformValue("uMetallic",  mesh.metallic);
+                glBindVertexArray(mesh.vao);
+                glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, nullptr);
+            }
         }
+        ++modelIdx;
     }
     glBindVertexArray(0);
     m_pbr->release();
+
+    if (!scene->textureVisible()) {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
+
+    // Wireframe overlay pass
+    if (!scene->textureVisible()) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        m_wire->bind();
+        modelIdx = 0;
+        for (const auto &model : scene->models()) {
+            if (!model->visible) { ++modelIdx; continue; }
+
+            QMatrix4x4 modelMat;
+            modelMat.translate(model->position);
+            modelMat.rotate(model->rotation.x(), 1,0,0);
+            modelMat.rotate(model->rotation.y(), 0,1,0);
+            modelMat.rotate(model->rotation.z(), 0,0,1);
+            modelMat.scale(model->scale);
+
+            m_wire->setUniformValue("uMVP", vp * modelMat);
+            bool selected = (modelIdx == selectedIdx);
+            m_wire->setUniformValue("uColor",
+                selected ? QVector4D(1.f, 0.75f, 0.1f, 1.f)
+                         : QVector4D(0.4f, 0.7f, 1.f, 0.8f));
+
+            auto it = m_gpuModels.find(model->assimpScene);
+            if (it != m_gpuModels.end()) {
+                for (const auto &mesh : it->second.meshes) {
+                    glBindVertexArray(mesh.vao);
+                    glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, nullptr);
+                }
+            }
+            ++modelIdx;
+        }
+        glBindVertexArray(0);
+        m_wire->release();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 }
 
-void Renderer::bindLights(const LightSystem &lights)
+void Renderer::bindLights(const LightSystem &lights, float intensityMult)
 {
     const auto &ls = lights.lights();
     int n = static_cast<int>(std::min(ls.size(), size_t(4)));
     m_pbr->setUniformValue("uLightCount", n);
     for (int i = 0; i < n; ++i) {
         const auto &l = ls[i];
-        QString prefix = QString("uLight%1").arg(i);
-        // We use array syntax
-        QString d = QString("uLightDir[%1]").arg(i);
-        QString c = QString("uLightColor[%1]").arg(i);
-        QString in= QString("uLightIntensity[%1]").arg(i);
-        QString tp= QString("uLightType[%1]").arg(i);
-        QVector3D dir = (l.type == Light::Point)
-                         ? l.position
-                         : l.direction.normalized();
+        QString d  = QString("uLightDir[%1]").arg(i);
+        QString c  = QString("uLightColor[%1]").arg(i);
+        QString in = QString("uLightIntensity[%1]").arg(i);
+        QString tp = QString("uLightType[%1]").arg(i);
+        QVector3D dir = (l.type == Light::Point) ? l.position : l.direction.normalized();
         m_pbr->setUniformValue(d.toLatin1(), dir);
         m_pbr->setUniformValue(c.toLatin1(),
             QVector3D(l.color.redF(), l.color.greenF(), l.color.blueF()));
-        m_pbr->setUniformValue(in.toLatin1(), l.intensity);
+        m_pbr->setUniformValue(in.toLatin1(), l.intensity * intensityMult);
         m_pbr->setUniformValue(tp.toLatin1(), (int)l.type);
     }
 }
 
-// ── GPU upload ────────────────────────────────────────────────────────────────
+// ── GPU upload / delete ────────────────────────────────────────────────────────
 
 void Renderer::uploadModel(SceneModel &model)
 {
     const aiScene *sc = static_cast<const aiScene*>(model.assimpScene);
     if (!sc) return;
-
     GpuModel gpu;
     uploadMeshes(gpu, sc, sc->mRootNode);
     m_gpuModels[model.assimpScene] = std::move(gpu);
@@ -310,10 +388,8 @@ void Renderer::uploadModel(SceneModel &model)
 
 void Renderer::uploadMeshes(GpuModel &gpu, const aiScene *sc, const aiNode *node)
 {
-    for (unsigned i = 0; i < node->mNumMeshes; ++i) {
-        const aiMesh *m = sc->mMeshes[node->mMeshes[i]];
-        gpu.meshes.push_back(uploadMesh(m, sc));
-    }
+    for (unsigned i = 0; i < node->mNumMeshes; ++i)
+        gpu.meshes.push_back(uploadMesh(sc->mMeshes[node->mMeshes[i]], sc));
     for (unsigned i = 0; i < node->mNumChildren; ++i)
         uploadMeshes(gpu, sc, node->mChildren[i]);
 }
@@ -321,7 +397,7 @@ void Renderer::uploadMeshes(GpuModel &gpu, const aiScene *sc, const aiNode *node
 GpuMesh Renderer::uploadMesh(const aiMesh *m, const aiScene *sc)
 {
     struct Vertex { float x,y,z, nx,ny,nz, u,v, tx,ty,tz; };
-    std::vector<Vertex>  verts(m->mNumVertices);
+    std::vector<Vertex>   verts(m->mNumVertices);
     std::vector<unsigned> idx;
 
     for (unsigned i = 0; i < m->mNumVertices; ++i) {
@@ -337,15 +413,13 @@ GpuMesh Renderer::uploadMesh(const aiMesh *m, const aiScene *sc)
             v.tx=m->mTangents[i].x; v.ty=m->mTangents[i].y; v.tz=m->mTangents[i].z;
         }
     }
-    for (unsigned i = 0; i < m->mNumFaces; ++i) {
+    for (unsigned i = 0; i < m->mNumFaces; ++i)
         for (unsigned j = 0; j < m->mFaces[i].mNumIndices; ++j)
             idx.push_back(m->mFaces[i].mIndices[j]);
-    }
 
     GpuMesh gm;
     gm.indexCount = static_cast<int>(idx.size());
 
-    // Material colour
     if (m->mMaterialIndex < sc->mNumMaterials) {
         aiMaterial *mat = sc->mMaterials[m->mMaterialIndex];
         aiColor4D col;
@@ -361,27 +435,19 @@ GpuMesh Renderer::uploadMesh(const aiMesh *m, const aiScene *sc)
     glGenVertexArrays(1, &gm.vao);
     glGenBuffers(1, &gm.vbo);
     glGenBuffers(1, &gm.ebo);
-
     glBindVertexArray(gm.vao);
     glBindBuffer(GL_ARRAY_BUFFER, gm.vbo);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(verts.size()*sizeof(Vertex)),
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(verts.size()*sizeof(Vertex)),
                  verts.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gm.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(idx.size()*sizeof(unsigned)),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(idx.size()*sizeof(unsigned)),
                  idx.data(), GL_STATIC_DRAW);
 
     const GLsizei stride = sizeof(Vertex);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*4));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*4));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void*)(8*4));
-    glEnableVertexAttribArray(3);
-
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);        glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3*4));    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6*4));    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride, (void*)(8*4));    glEnableVertexAttribArray(3);
     glBindVertexArray(0);
     return gm;
 }
