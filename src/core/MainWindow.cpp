@@ -130,7 +130,8 @@ void MainWindow::setupUI()
 void MainWindow::setupMenuBar()
 {
     auto *fileMenu = menuBar()->addMenu(tr("파일 / File"));
-    fileMenu->addAction(tr("열기…"),          this, &MainWindow::onOpenFile, QKeySequence::Open);
+    auto *a = menu->addAction(tr("열기"), this, &MainWindow::onOpen);
+    a->setShortcut(QKeySequence::Open);
     fileMenu->addAction(tr("씬에 추가…"),     this, &MainWindow::onAddFile,  QKeySequence("Ctrl+Shift+O"));
     fileMenu->addSeparator();
     fileMenu->addAction(tr("스크린샷 저장"),  this, &MainWindow::onScreenshot, QKeySequence("Ctrl+P"));
